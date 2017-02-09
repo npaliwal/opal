@@ -1,4 +1,4 @@
-package opal;
+package src.opal;
 
 public class RouteStop {
 	

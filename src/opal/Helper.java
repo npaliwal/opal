@@ -1,29 +1,37 @@
-package opal;
+package src.opal;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class Helper {
-	static String baseDir = "./data/26th_30th/";
+	static String baseDir = "./data/complete/";
 	//static String baseDir = "./data/sample/";
 
 	static Map<String, Stop> stops = new HashMap<String, Stop>();
 	static Map<String, Route> routes = new HashMap<String, Route>();
+	static LinkedHashMap<String, Trip> trips = new LinkedHashMap<String, Trip>();
 	static Map<String, Integer> suburbs = new HashMap<String, Integer>();
 	//static Map<String, RouteStop> routeStops = new HashMap<String, RouteStop>();
 	
 	public static void main(String[] args) throws Exception{
 		String[] lineArr = null;
-		String routeId = null, stopId = null, suburb = null;
+		String routeId = null, tripId = null, stopId = null, suburb = null;
 		Stop currStop = null;
 		Route currRoute = null;
+		Trip currTrip = null;
 		//RouteStop currRouteStop = null;
 		boolean isFirst = true;
+		String prevTripId = "";
 		try(BufferedReader br = new BufferedReader(new FileReader(baseDir + "raw_data.csv"))) {
 
 		    for(String line; (line = br.readLine()) != null; ) {
@@ -33,8 +41,9 @@ public class Helper {
 		    	}
 		    	lineArr = line.split("\\|");
 		    	if(lineArr != null){
-		    		routeId = lineArr[1] +"("+lineArr[2]+")";
-		    		stopId = lineArr[7];
+		    		routeId = lineArr[1] +"("+lineArr[2]+ "-" + lineArr[3] + ")";
+		    		tripId = lineArr[4];
+			    	stopId = lineArr[7];
 		    		suburb = lineArr[10];
 		    		
 		    		if(suburbs.get(suburb) == null){
@@ -44,6 +53,7 @@ public class Helper {
 		    		
 		    		currStop = stops.get(stopId);
 		    		currRoute = routes.get(routeId);
+		    		currTrip = trips.get(tripId);
 		    		//currRouteStop = routeStops.get(stopId +"$"+ routeId);
 		    		
 		    		if(currStop == null){
@@ -59,6 +69,17 @@ public class Helper {
 		    			routes.put(routeId, currRoute);
 		    		}
 		    		currRoute.addStop(stopId);
+		    		
+		    		String testDate = lineArr[0] + "," + lineArr[6];
+		    		DateFormat formatter = new SimpleDateFormat("d/MMM/yy,HH:mm");
+		    		Date stopTime = formatter.parse(testDate);
+		    		
+		    		if(currTrip == null) {
+		    			currTrip = new Trip(tripId, currRoute, stopTime);
+		    			trips.put(tripId, currTrip);
+		    		}
+		    		currTrip.addStopTimeData(new Pair(currStop, stopTime));
+		    		
 
 		    		//if(currRouteStop == null){
 		    		//	currRouteStop = new RouteStop(stopId, routeId);
@@ -78,6 +99,16 @@ public class Helper {
 					bw.write(entry.getValue().getString() + "\n");
 			    }
 				System.out.println("Done Routes");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		    
+		    try (BufferedWriter bw = new BufferedWriter(new FileWriter(baseDir + "trips.csv"))) {
+				for(Map.Entry<String, Trip> entry : trips.entrySet()){
+			    	//entry.getValue().setStopPositions(routeStops);
+					bw.write(entry.getValue().getString() + "\n");
+			    }
+				System.out.println("Done Trips");
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -108,6 +139,66 @@ public class Helper {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		    
+		    String[] limitSuburb = {"BONDI JUNCTION", "BONDI BEACH", "NORTH BONDI", "BONDI"};
+		    ArrayList<Stop> limitStop = new ArrayList<>();
+		    for(int i = 0; i < limitSuburb.length; i++)
+		    	for(Map.Entry<String, Stop> entry : stops.entrySet()){
+		    		if(entry.getValue().suburb.equals(limitSuburb[i]))
+		    			limitStop.add(entry.getValue());
+		    	}
+		    
+		    //System.out.println(limitStop.size());
+		    
+		    try (BufferedWriter bw = new BufferedWriter(new FileWriter(baseDir + "/limit_stops.csv"))) {
+				for(Stop entry : limitStop){
+					bw.write(entry.getString() + "\n");
+			    }
+				System.out.println("Done Limit Stops");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		    
+		    ArrayList<Route> limitRoute = new ArrayList<>();
+		    for(int i = 0; i < limitStop.size(); i++)
+		    	for(Map.Entry<String, Route> entry : routes.entrySet()){
+		    		Route route = entry.getValue();
+					if(!route.stop_point_ids.isEmpty()) {
+		    			if(route.stop_point_ids.get(0).equals(limitStop.get(i).id))
+		    				limitRoute.add(route);
+		    		}
+		    	}
+		    //System.out.println(limitRoute.size());
+		    
+		    try (BufferedWriter bw = new BufferedWriter(new FileWriter(baseDir + "/limit_routes.csv"))) {
+				for(Route entry : limitRoute){
+					bw.write(entry.getString() + "\n");
+			    }
+				System.out.println("Done Limit Routes");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		    
+		    ArrayList<Trip> limitTrip = new ArrayList<>();
+		    for(int i = 0; i < limitRoute.size(); i++)
+		    	for(Map.Entry<String, Trip> entry : trips.entrySet()){
+		    		Trip trip = entry.getValue();
+					if(trip.route.id.equals(limitRoute.get(i).id))
+		    			limitTrip.add(trip);
+		    	}
+		    //System.out.println(limitRoute.size());
+		    
+		    try (BufferedWriter bw = new BufferedWriter(new FileWriter(baseDir + "/limit_trips.csv"))) {
+				for(Trip entry : limitTrip){
+					bw.write(entry.getString() + "\n");
+			    }
+				System.out.println("Done Limit Trips");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		    
+		    
+		    	
 		}
 	}
 }
