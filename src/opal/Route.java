@@ -29,7 +29,7 @@ public class Route {
 		this.reverse_route = false;
 		this.display_on_app = true;
 		this.non_operation = false;
-		this.code = "CODE";
+		this.code = _var + _dir.substring(0, 1);
 		this.variant = _var;
 	}
 	
